@@ -550,7 +550,7 @@ select.input-field { cursor:pointer; }
     <div class="card">
       <div class="card-header">
         <div class="card-title">AI Productivity Coach</div>
-        <span style="font-size:0.75rem;background:rgba(106,247,196,0.15);color:var(--accent3);padding:3px 10px;border-radius:20px;">Powered by Claude</span>
+        <span style="font-size:0.75rem;background:rgba(106,247,196,0.15);color:var(--accent3);padding:3px 10px;border-radius:20px;">⚡ Works Offline</span>
       </div>
       <div id="aiChat" style="min-height:300px;max-height:400px;overflow-y:auto;margin-bottom:12px;">
         <div class="ai-bubble">
@@ -903,43 +903,95 @@ function renderHabits(){
 }
 
 // ===================== AI COACH =====================
-async function sendAI(){
-  const input=document.getElementById('aiInput');
-  const msg=input.value.trim();
-  if(!msg)return;
-  appendAI(msg,'user');
-  input.value='';
-  document.getElementById('aiBtn').disabled=true;
+function sendAI(){
+  const input = document.getElementById('aiInput');
+  const msg = input.value.trim();
+  if(!msg) return;
+  appendAI(msg, 'user');
+  input.value = '';
 
-  const thinkId='think_'+Date.now();
-  appendAI('<div class="typing-dots"><span></span><span></span><span></span></div>','ai',thinkId);
+  // Simulate typing delay
+  const thinkId = 'think_' + Date.now();
+  appendAI('<div class="typing-dots"><span></span><span></span><span></span></div>', 'ai', thinkId);
 
-  const context=`You are NeuroCoach, an AI productivity coach embedded in NeuroFlow Pro.
-The user has completed ${state.totalTasks} tasks, done ${state.sessions} Pomodoro sessions.
-They have ${state.tasks.filter(t=>!t.done).length} pending tasks.
-Current streak: ${state.streak} days.
-Be concise, motivating, practical. Max 3-4 sentences unless asked for a plan.`;
-
-  try {
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:1000,
-        system:context,
-        messages:[{role:'user',content:msg}]
-      })
-    });
-    const data=await res.json();
-    const reply=data.content?.[0]?.text||'Sorry, I had trouble responding. Try again!';
+  setTimeout(() => {
     document.getElementById(thinkId)?.remove();
-    appendAI(reply,'ai');
-  } catch(e) {
-    document.getElementById(thinkId)?.remove();
-    appendAI("I'm having connection trouble. Make sure you're using this through Claude's interface!","ai");
+    const reply = getSmartReply(msg.toLowerCase());
+    appendAI(reply, 'ai');
+  }, 900 + Math.random() * 600);
+}
+
+function getSmartReply(msg){
+  const pending = state.tasks.filter(t=>!t.done).length;
+  const done = state.totalTasks;
+  const sessions = state.sessions;
+  const streak = state.streak;
+
+  // ── Overwhelmed / stressed ──
+  if(msg.includes('overwhelm') || msg.includes('stressed') || msg.includes('too much') || msg.includes('cant') || msg.includes("can't")){
+    return `Take a breath — you've got this. 💙 You currently have <b>${pending} pending tasks</b>. Pick just ONE that takes under 10 minutes and do only that. Momentum beats perfection every time. Want me to help you prioritize?`;
   }
-  document.getElementById('aiBtn').disabled=false;
+
+  // ── Prioritize ──
+  if(msg.includes('priorit') || msg.includes('important') || msg.includes('first')){
+    const high = state.tasks.filter(t=>!t.done && t.priority==='high');
+    if(high.length){
+      return `You have <b>${high.length} high-priority task(s)</b> pending. Start with "<b>${high[0].text}</b>" — knock that out first and everything else gets easier. High-priority tasks done early = stress gone for the rest of the day. 🎯`;
+    }
+    return `No high-priority tasks found! Try tagging your most important tasks as 🔴 High in the Tasks tab. Rule of thumb: do the hardest thing first, while your energy is fresh. 🧠`;
+  }
+
+  // ── Focus / concentration ──
+  if(msg.includes('focus') || msg.includes('distract') || msg.includes('concentrate')){
+    return `For deep focus: start a 25-min Pomodoro, turn on an ambient sound like Rain or Forest 🌧️, and commit to ONE task only. After ${sessions > 0 ? `your ${sessions} sessions so far` : 'your first session'}, you'll feel the flow state kick in. No phone, no tabs — just one thing.`;
+  }
+
+  // ── Motivation ──
+  if(msg.includes('motiv') || msg.includes('lazy') || msg.includes('procrastinat') || msg.includes('start')){
+    return `You've already completed <b>${done} tasks</b> and done <b>${sessions} focus sessions</b> — that's real progress! 🚀 The trick to starting: shrink the task to its tiniest version. Instead of "finish project", do "open the file". That's it. Start there.`;
+  }
+
+  // ── Break / tired ──
+  if(msg.includes('tired') || msg.includes('break') || msg.includes('rest') || msg.includes('exhaust')){
+    return `Rest IS productive. 🧘 Take a proper 5-min break — stand up, stretch, drink water. Try the Box Breathing tool in the Focus tab to reset your nervous system. Your brain consolidates learning during rest. Come back sharper.`;
+  }
+
+  // ── Study plan ──
+  if(msg.includes('study') || msg.includes('plan') || msg.includes('schedule')){
+    return `Here's a solid study block: <b>25 min focus → 5 min break → repeat 4x → 20 min long break.</b> Use the Pomodoro timer for each block. Add each topic as a task so you can check them off. Checking things off releases dopamine — use that. 📚`;
+  }
+
+  // ── Streak ──
+  if(msg.includes('streak') || msg.includes('habit') || msg.includes('consistent')){
+    if(streak >= 3) return `${streak}-day streak — seriously impressive! 🔥 The key to not breaking it: make the habit so small it's impossible to skip. Even 1 Pomodoro counts. Show up daily, even imperfectly.`;
+    return `Streaks compound like interest. 🔥 Start small — just 1 Pomodoro per day is enough to build the habit. You're at ${streak} days. Let's get it to 7. That's when habits start to stick.`;
+  }
+
+  // ── Time management ──
+  if(msg.includes('time') || msg.includes('deadline') || msg.includes('late')){
+    return `Time pressure? Use the <b>2-minute rule</b>: if a task takes under 2 min, do it NOW. For bigger tasks, time-block them — add them to your task list with a priority and tackle high ones first. Deadlines are just focused motivation. ⏰`;
+  }
+
+  // ── Greeting ──
+  if(msg.includes('hi') || msg.includes('hello') || msg.includes('hey') || msg.length < 10){
+    return `Hey! 👋 I'm NeuroCoach, your built-in productivity assistant. I know you have <b>${pending} pending tasks</b> and a <b>${streak}-day streak</b>. Ask me about focus, priorities, study plans, motivation, habits — I'm here to help you crush it today. 💪`;
+  }
+
+  // ── Progress check ──
+  if(msg.includes('progress') || msg.includes('doing') || msg.includes('how am i')){
+    const score = Math.min(100, Math.round((sessions*10 + done*5 + streak*15)/3));
+    return `Here's your snapshot 📊: <b>${done} tasks completed</b>, <b>${sessions} focus sessions</b>, <b>${streak}-day streak</b>, and a focus score of <b>${score}/100</b>. ${score >= 50 ? "You're on a roll — keep building!" : "You're just getting started. Every session counts. Let's go! 🚀"}`;
+  }
+
+  // ── Default smart fallback ──
+  const fallbacks = [
+    `Great question! Here's my take: with <b>${pending} tasks</b> still pending, your best move is to pick the smallest one and finish it. Small wins build big momentum. 💡`,
+    `Productivity tip: your brain works best in focused sprints. Try a 25-min Pomodoro on your top task right now — you'll be surprised how much you get done. ⚡`,
+    `Remember: done is better than perfect. Pick one task, set a timer, and go. You've completed <b>${done} tasks</b> already — you clearly have what it takes. 🎯`,
+    `The best system is the one you actually use. You're already here, which means you're serious. Now pick ONE task and start. That's the whole secret. 🔑`,
+    `Energy management matters as much as time management. Are you hydrated? Had a break recently? Sometimes a 5-min reset is all it takes to unlock a productive hour. 💧`
+  ];
+  return fallbacks[Math.floor(Math.random() * fallbacks.length)];
 }
 
 function appendAI(msg,role,id){
