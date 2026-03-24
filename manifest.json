@@ -2,7 +2,7 @@
   "name": "NeuroFlow Pro",
   "short_name": "NeuroFlow",
   "description": "Your smart productivity space — tasks, focus timer, habits & AI coach.",
-  "start_url": "./index.html",
+  "start_url": "./index(1).html",
   "display": "standalone",
   "background_color": "#0a0a0f",
   "theme_color": "#0a0a0f",
